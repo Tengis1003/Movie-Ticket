@@ -7,7 +7,8 @@ const crypto = require("crypto");
 const QRCode = require("qrcode");
 const app = express();
 const PORT = process.env.PORT || 3000;
-const poster_link = "https://cdn11.bigcommerce.com/s-ydriczk/images/stencil/1500x1500/products/89058/93685/Joker-2019-Final-Style-steps-Poster-buy-original-movie-posters-at-starstills__62518.1669120603.jpg?c=2&imbypass=on"
+const poster_link =
+  "https://cdn11.bigcommerce.com/s-ydriczk/images/stencil/1500x1500/products/89058/93685/Joker-2019-Final-Style-steps-Poster-buy-original-movie-posters-at-starstills__62518.1669120603.jpg?c=2&imbypass=on";
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // Allows the scanner to send JSON data
@@ -105,7 +106,7 @@ const generateHTML = (content) => `
 <body>
     <div class="card">
         ${content}
-        <div class="footer-text">Developed by Tengis</div>
+        <div class="footer-text">Developed by 12A Tengis</div>
     </div>
 </body>
 </html>
@@ -125,7 +126,7 @@ app.get("/scan", (req, res) => {
   }
   res.send(
     generateHTML(`
-        <span class="emoji-header">🍿</span>
+        <span class="emoji-header"><img src="/width_550.webp" alt=""></span>
         <h1>Киноны үдэш</h1>
         <p>Мэдээллээ оруулан тасалбар болон QR кодоо аваарай.</p>
         <form action="/scan" method="POST" style="margin-top: 24px;">
