@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const QRCode = require("qrcode");
 const app = express();
 const PORT = process.env.PORT || 3000;
+const poster_link = "https://cdn11.bigcommerce.com/s-ydriczk/images/stencil/1500x1500/products/89058/93685/Joker-2019-Final-Style-steps-Poster-buy-original-movie-posters-at-starstills__62518.1669120603.jpg?c=2&imbypass=on"
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // Allows the scanner to send JSON data
@@ -132,7 +133,7 @@ app.get("/scan", (req, res) => {
             <input type="text" name="studentClass" placeholder="Анги: (Жишээ нь: 10A)" required>
             <button type="submit">Тасалбар авах</button>
         </form>
-        <img src="https://images.unsplash.com/photo-1440404653325-ab127d49abc1?ixlib=rb-1.2.1&auto=format&fit=crop&w=400&q=80" alt="Poster" class="poster-img">
+        <img src=`${poster_link}` alt="Poster" class="poster-img">
     `),
   );
 });
