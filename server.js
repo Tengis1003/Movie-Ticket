@@ -12,6 +12,7 @@ const poster_link =
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // Allows the scanner to send JSON data
+app.use(express.static("public"));
 
 let ticketCount = 0;
 const MAX_TICKETS = 400;
@@ -126,7 +127,7 @@ app.get("/scan", (req, res) => {
   }
   res.send(
     generateHTML(`
-        <span class="emoji-header"><img src="/width_550.webp" alt=""></span>
+        <span class="emoji-header"><img src="/width_550.webp" width=100px alt=""></span>
         <h1>Киноны үдэш</h1>
         <p>Мэдээллээ оруулан тасалбар болон QR кодоо аваарай.</p>
         <form action="/scan" method="POST" style="margin-top: 24px;">
