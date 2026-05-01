@@ -133,7 +133,7 @@ app.get("/scan", (req, res) => {
             <input type="text" name="studentClass" placeholder="Анги: (Жишээ нь: 10A)" required>
             <button type="submit">Тасалбар авах</button>
         </form>
-        <img src=`${poster_link}` alt="Poster" class="poster-img">
+        <img src=${poster_link} alt="Poster" class="poster-img">
     `),
   );
 });
