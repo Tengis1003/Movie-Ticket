@@ -125,17 +125,40 @@ app.get("/scan", (req, res) => {
         ),
       );
   }
+  // 1. Улаанбаатарын цагаар одоогийн огноо, цагийг авах
+  const currentDateTime = new Date().toLocaleString("mn-MN", {
+    timeZone: "Asia/Ulaanbaatar",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
   res.send(
     generateHTML(`
-        <span class="emoji-header"><img src="/width_550.webp" width=100px alt=""></span>
-        <h1>Киноны үдэш</h1>
+        <span class="emoji-header">
+            <img src="/width_550.webp" style="width: 100px;" alt="Logo">
+        </span>
+        <h1>Orkhon Khasu Movie Night</h1>
+        
+        <p style="font-weight: 600; color: #4B5563; margin-top: -5px; margin-bottom: 15px;">
+            📅 ${currentDateTime}
+        </p>
+
         <p>Мэдээллээ оруулан тасалбар болон QR кодоо аваарай.</p>
+        
         <form action="/scan" method="POST" style="margin-top: 24px;">
             <input type="email" name="studentEmail" placeholder="ner.ovog@orkhonschool.edu.mn" required>
             <input type="text" name="studentClass" placeholder="Анги: (Жишээ нь: 10A)" required>
             <button type="submit">Тасалбар авах</button>
+            
+            <p style="margin-top: 16px; font-size: 14px; font-weight: 600; color: #059669;">
+                🎟️ Үлдсэн тасалбар: ${MAX_TICKETS - ticketCount}
+            </p>
         </form>
-        <img src=${poster_link} alt="Poster" class="poster-img">
+        
+        <img src="${poster_link}" alt="Poster" class="poster-img">
     `),
   );
 });
