@@ -1,5 +1,7 @@
 require("dotenv").config();
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
 const { GoogleSpreadsheet } = require("google-spreadsheet");
 const { JWT } = require("google-auth-library");
 const crypto = require("crypto");
@@ -26,6 +28,27 @@ function isEventPast() {
   // Ulaanbaatar is UTC+8, so subtract 8 hours to get UTC
   const eventUTC = Date.UTC(year, month - 1, day, hour - 8, minute);
   return Date.now() > eventUTC;
+}
+
+// --- STUDENT ALLOWLIST ---
+// Reads public/students.txt at startup (one email per line)
+let allowedEmails = new Set();
+try {
+  const studentsPath = path.join(__dirname, "public", "students.txt");
+  const content = fs.readFileSync(studentsPath, "utf-8");
+  allowedEmails = new Set(
+    content
+      .split(/\r?\n/)
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => e && e.includes("@")),
+  );
+  console.log(
+    `✅ Loaded ${allowedEmails.size} allowed emails from public/students.txt`,
+  );
+} catch (err) {
+  console.warn(
+    "⚠️ public/students.txt not found — anyone with a school email can sign up",
+  );
 }
 
 // --- DUAL BREVO ACCOUNT SETUP ---
@@ -288,18 +311,22 @@ app.get("/", (req, res) => res.redirect("/scan"));
 
 app.get("/scan", (req, res) => {
   if (isEventPast()) {
-    return res.status(403).send(
-      generateHTML(
-        `<span class="emoji-header">🎬</span><h1>Үйл явдал дууссан</h1><p>Энэ удаагийн киноны үдэш дууссан байна. Дараагийн арга хэмжээг хүлээж байгаарай!</p>`,
-      ),
-    );
+    return res
+      .status(403)
+      .send(
+        generateHTML(
+          `<span class="emoji-header">🎬</span><h1>Үйл явдал дууссан</h1><p>Энэ удаагийн киноны үдэш дууссан байна. Дараагийн арга хэмжээг хүлээж байгаарай!</p>`,
+        ),
+      );
   }
   if (ticketCount >= MAX_TICKETS) {
-    return res.status(403).send(
-      generateHTML(
-        `<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1><p>Нийт ${MAX_TICKETS} тасалбар дууссан байна.</p>`,
-      ),
-    );
+    return res
+      .status(403)
+      .send(
+        generateHTML(
+          `<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1><p>Нийт ${MAX_TICKETS} тасалбар дууссан байна.</p>`,
+        ),
+      );
   }
   const currentDateTime = formatEventDate();
   res.send(
@@ -325,37 +352,66 @@ app.get("/scan", (req, res) => {
 
 app.post("/scan", ipLimiter, emailLimiter, async (req, res) => {
   if (isEventPast()) {
-    return res.status(403).send(
-      generateHTML(
-        `<span class="emoji-header">🎬</span><h1>Үйл явдал дууссан</h1><p>Бүртгэл хаагдсан.</p>`,
-      ),
-    );
+    return res
+      .status(403)
+      .send(
+        generateHTML(
+          `<span class="emoji-header">🎬</span><h1>Үйл явдал дууссан</h1><p>Бүртгэл хаагдсан.</p>`,
+        ),
+      );
   }
   const email = (req.body.studentEmail || "").trim().toLowerCase();
   const studentClass = (req.body.studentClass || "").trim();
 
   if (!email || !studentClass) {
-    return res.send(generateHTML(`<span class="emoji-header">⚠️</span><h1 class="alert-error">Дутуу мэдээлэл</h1><p>И-мэйл болон ангиа бөглөнө үү.</p>`));
+    return res.send(
+      generateHTML(
+        `<span class="emoji-header">⚠️</span><h1 class="alert-error">Дутуу мэдээлэл</h1><p>И-мэйл болон ангиа бөглөнө үү.</p>`,
+      ),
+    );
   }
   if (!email.endsWith("@orkhonschool.edu.mn")) {
-    return res.send(generateHTML(`<span class="emoji-header">⚠️</span><h1 class="alert-error">Буруу хаяг</h1><p>Зөвхөн сургуулийн и-мэйл хаяг ашиглана уу.</p>`));
+    return res.send(
+      generateHTML(
+        `<span class="emoji-header">⚠️</span><h1 class="alert-error">Буруу хаяг</h1><p>Зөвхөн сургуулийн и-мэйл хаяг ашиглана уу.</p>`,
+      ),
+    );
+  }
+  if (allowedEmails.size > 0 && !allowedEmails.has(email)) {
+    return res.send(
+      generateHTML(
+        `<span class="emoji-header">🚫</span><h1 class="alert-error">Бүртгэлгүй и-мэйл</h1><p>Энэ и-мэйл хаяг сурагчийн жагсаалтад байхгүй байна. Анги удирдсан багштайгаа холбогдоно уу.</p>`,
+      ),
+    );
   }
   if (claimedEmails.has(email)) {
-    return res.send(generateHTML(`<span class="emoji-header">🎟️</span><h1 style="color: #059669;">Баталгаажсан байна!</h1><p>И-мэйл хаягаа шалгана уу.</p>`));
+    return res.send(
+      generateHTML(
+        `<span class="emoji-header">🎟️</span><h1 style="color: #059669;">Баталгаажсан байна!</h1><p>И-мэйл хаягаа шалгана уу.</p>`,
+      ),
+    );
   }
 
   const myTicketNumber = ++ticketCount;
   if (myTicketNumber > MAX_TICKETS) {
     ticketCount--;
-    return res.status(403).send(generateHTML(`<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1>`));
+    return res
+      .status(403)
+      .send(
+        generateHTML(
+          `<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1>`,
+        ),
+      );
   }
   claimedEmails.add(email);
 
   const ticketId = crypto.randomBytes(6).toString("hex");
   activeTickets.set(ticketId, {
-    email, studentClass,
+    email,
+    studentClass,
     ticketNumber: myTicketNumber,
-    present: false, rowNumber: null,
+    present: false,
+    rowNumber: null,
   });
 
   let qrCodeDataURI;
@@ -366,7 +422,11 @@ app.post("/scan", ipLimiter, emailLimiter, async (req, res) => {
     ticketCount--;
     claimedEmails.delete(email);
     activeTickets.delete(ticketId);
-    return res.send(generateHTML(`<span class="emoji-header">⚠️</span><h1 class="alert-error">Алдаа гарлаа</h1><p>Дахин оролдоно уу.</p>`));
+    return res.send(
+      generateHTML(
+        `<span class="emoji-header">⚠️</span><h1 class="alert-error">Алдаа гарлаа</h1><p>Дахин оролдоно уу.</p>`,
+      ),
+    );
   }
 
   res.send(
@@ -383,7 +443,9 @@ app.post("/scan", ipLimiter, emailLimiter, async (req, res) => {
       Дугаар: myTicketNumber,
       "И-мэйл": email,
       Анги: studentClass,
-      Огноо: new Date().toLocaleString("mn-MN", { timeZone: "Asia/Ulaanbaatar" }),
+      Огноо: new Date().toLocaleString("mn-MN", {
+        timeZone: "Asia/Ulaanbaatar",
+      }),
       Ирц: "Эзгүй",
       ID: ticketId,
     });
@@ -620,17 +682,28 @@ app.post("/api/verify", checkAdmin, (req, res) => {
     return { present, total: activeTickets.size };
   };
   if (!ticket) {
-    return res.json({ success: false, alreadyScanned: false, message: "❌ Буруу эсвэл хуурамч QR код байна!", stats: getStats() });
+    return res.json({
+      success: false,
+      alreadyScanned: false,
+      message: "❌ Буруу эсвэл хуурамч QR код байна!",
+      stats: getStats(),
+    });
   }
   if (ticket.present) {
-    return res.json({ success: false, alreadyScanned: true, message: `⚠️ #${ticket.ticketNumber} (${ticket.studentClass})\n${ticket.email}\nХэдийнээ орсон!`, stats: getStats() });
+    return res.json({
+      success: false,
+      alreadyScanned: true,
+      message: `⚠️ #${ticket.ticketNumber} (${ticket.studentClass})\n${ticket.email}\nХэдийнээ орсон!`,
+      stats: getStats(),
+    });
   }
   ticket.present = true;
   enqueueSheetJob(async () => {
     try {
       const rows = await sheet.getRows();
       const targetRow =
-        (ticket.rowNumber && rows.find((r) => r.rowNumber === ticket.rowNumber)) ||
+        (ticket.rowNumber &&
+          rows.find((r) => r.rowNumber === ticket.rowNumber)) ||
         rows.find((r) => r.get("ID") === ticketId);
       if (targetRow) {
         targetRow.set("Ирц", "Ирсэн");
@@ -647,7 +720,9 @@ app.post("/api/verify", checkAdmin, (req, res) => {
   });
 });
 
-app.get("/health", (req, res) => res.json({ ok: true, ticketCount, max: MAX_TICKETS }));
+app.get("/health", (req, res) =>
+  res.json({ ok: true, ticketCount, max: MAX_TICKETS }),
+);
 
 // Admin dashboard: see email account usage
 app.get("/admin/status", checkAdmin, (req, res) => {
