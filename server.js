@@ -15,15 +15,7 @@ const MAX_TICKETS = 400;
 // Two Brevo accounts = 600 emails/day combined (300 each)
 // Code automatically falls back to account 2 when account 1 hits its limit
 const BREVO_ACCOUNTS = [
-  {
-    name: "primary",
-    apiKey: process.env.BREVO_API_KEY_1,
-    senderEmail: process.env.SENDER_EMAIL_1,
-    senderName: process.env.SENDER_NAME_1 || "Orkhon School Movie Night",
-    sentToday: 0,
-    dailyLimit: 290, // a bit under 300 to leave buffer
-    blockedUntil: 0, // timestamp; if Brevo says "limit reached", we skip until next day
-  },
+
   {
     name: "backup",
     apiKey: process.env.BREVO_API_KEY_2,
