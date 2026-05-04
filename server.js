@@ -11,6 +11,23 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_KEY = process.env.ADMIN_KEY || "change-me-in-env";
 const MAX_TICKETS = 400;
 
+// --- EVENT CONFIG (change monthly) ---
+// Format: year, month (1-12), day, hour (0-23), minute — all in Ulaanbaatar time (UTC+8)
+const EVENT_DATE = { year: 2026, month: 5, day: 7, hour: 16, minute: 30 };
+
+function formatEventDate() {
+  const { year, month, day, hour, minute } = EVENT_DATE;
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${year}/${pad(month)}/${pad(day)} ${pad(hour)}:${pad(minute)}`;
+}
+
+function isEventPast() {
+  const { year, month, day, hour, minute } = EVENT_DATE;
+  // Ulaanbaatar is UTC+8, so subtract 8 hours to get UTC
+  const eventUTC = Date.UTC(year, month - 1, day, hour - 8, minute);
+  return Date.now() > eventUTC;
+}
+
 // --- DUAL BREVO ACCOUNT SETUP ---
 // Two Brevo accounts = 600 emails/day combined (300 each)
 // Code automatically falls back to account 2 when account 1 hits its limit
@@ -270,23 +287,21 @@ const emailLimiter = rateLimit({
 app.get("/", (req, res) => res.redirect("/scan"));
 
 app.get("/scan", (req, res) => {
-  if (ticketCount >= MAX_TICKETS) {
-    return res
-      .status(403)
-      .send(
-        generateHTML(
-          `<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1><p>Нийт ${MAX_TICKETS} тасалбар дууссан байна.</p>`,
-        ),
-      );
+  if (isEventPast()) {
+    return res.status(403).send(
+      generateHTML(
+        `<span class="emoji-header">🎬</span><h1>Үйл явдал дууссан</h1><p>Энэ удаагийн киноны үдэш дууссан байна. Дараагийн арга хэмжээг хүлээж байгаарай!</p>`,
+      ),
+    );
   }
-  const currentDateTime = new Date().toLocaleString("mn-MN", {
-    timeZone: "Asia/Ulaanbaatar",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  if (ticketCount >= MAX_TICKETS) {
+    return res.status(403).send(
+      generateHTML(
+        `<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1><p>Нийт ${MAX_TICKETS} тасалбар дууссан байна.</p>`,
+      ),
+    );
+  }
+  const currentDateTime = formatEventDate();
   res.send(
     generateHTML(`
         <span class="emoji-header">
@@ -309,51 +324,38 @@ app.get("/scan", (req, res) => {
 });
 
 app.post("/scan", ipLimiter, emailLimiter, async (req, res) => {
+  if (isEventPast()) {
+    return res.status(403).send(
+      generateHTML(
+        `<span class="emoji-header">🎬</span><h1>Үйл явдал дууссан</h1><p>Бүртгэл хаагдсан.</p>`,
+      ),
+    );
+  }
   const email = (req.body.studentEmail || "").trim().toLowerCase();
   const studentClass = (req.body.studentClass || "").trim();
 
   if (!email || !studentClass) {
-    return res.send(
-      generateHTML(
-        `<span class="emoji-header">⚠️</span><h1 class="alert-error">Дутуу мэдээлэл</h1><p>И-мэйл болон ангиа бөглөнө үү.</p>`,
-      ),
-    );
+    return res.send(generateHTML(`<span class="emoji-header">⚠️</span><h1 class="alert-error">Дутуу мэдээлэл</h1><p>И-мэйл болон ангиа бөглөнө үү.</p>`));
   }
   if (!email.endsWith("@orkhonschool.edu.mn")) {
-    return res.send(
-      generateHTML(
-        `<span class="emoji-header">⚠️</span><h1 class="alert-error">Буруу хаяг</h1><p>Зөвхөн сургуулийн и-мэйл хаяг ашиглана уу.</p>`,
-      ),
-    );
+    return res.send(generateHTML(`<span class="emoji-header">⚠️</span><h1 class="alert-error">Буруу хаяг</h1><p>Зөвхөн сургуулийн и-мэйл хаяг ашиглана уу.</p>`));
   }
   if (claimedEmails.has(email)) {
-    return res.send(
-      generateHTML(
-        `<span class="emoji-header">🎟️</span><h1 style="color: #059669;">Баталгаажсан байна!</h1><p>И-мэйл хаягаа шалгана уу.</p>`,
-      ),
-    );
+    return res.send(generateHTML(`<span class="emoji-header">🎟️</span><h1 style="color: #059669;">Баталгаажсан байна!</h1><p>И-мэйл хаягаа шалгана уу.</p>`));
   }
 
   const myTicketNumber = ++ticketCount;
   if (myTicketNumber > MAX_TICKETS) {
     ticketCount--;
-    return res
-      .status(403)
-      .send(
-        generateHTML(
-          `<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1>`,
-        ),
-      );
+    return res.status(403).send(generateHTML(`<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1>`));
   }
   claimedEmails.add(email);
 
   const ticketId = crypto.randomBytes(6).toString("hex");
   activeTickets.set(ticketId, {
-    email,
-    studentClass,
+    email, studentClass,
     ticketNumber: myTicketNumber,
-    present: false,
-    rowNumber: null,
+    present: false, rowNumber: null,
   });
 
   let qrCodeDataURI;
@@ -364,11 +366,7 @@ app.post("/scan", ipLimiter, emailLimiter, async (req, res) => {
     ticketCount--;
     claimedEmails.delete(email);
     activeTickets.delete(ticketId);
-    return res.send(
-      generateHTML(
-        `<span class="emoji-header">⚠️</span><h1 class="alert-error">Алдаа гарлаа</h1><p>Дахин оролдоно уу.</p>`,
-      ),
-    );
+    return res.send(generateHTML(`<span class="emoji-header">⚠️</span><h1 class="alert-error">Алдаа гарлаа</h1><p>Дахин оролдоно уу.</p>`));
   }
 
   res.send(
@@ -385,9 +383,7 @@ app.post("/scan", ipLimiter, emailLimiter, async (req, res) => {
       Дугаар: myTicketNumber,
       "И-мэйл": email,
       Анги: studentClass,
-      Огноо: new Date().toLocaleString("mn-MN", {
-        timeZone: "Asia/Ulaanbaatar",
-      }),
+      Огноо: new Date().toLocaleString("mn-MN", { timeZone: "Asia/Ulaanbaatar" }),
       Ирц: "Эзгүй",
       ID: ticketId,
     });
@@ -402,6 +398,7 @@ app.post("/scan", ipLimiter, emailLimiter, async (req, res) => {
         <div style="font-family: sans-serif; text-align: center; padding: 20px; background: #F9FAFB;">
             <div style="background: white; padding: 30px; border-radius: 16px; max-width: 400px; margin: 0 auto;">
                 <h2>Орхон Сургуулийн Киноны Үдэш 🍿</h2>
+                <p style="color: #6B7280; margin: 4px 0 16px 0;">📅 ${formatEventDate()}</p>
                 <p>Таны тасалбар баталгаажлаа!</p>
                 <h1 style="font-size: 40px; margin: 10px 0;">#${myTicketNumber}</h1>
                 <p><strong>Анги:</strong> ${studentClass}</p>
@@ -623,28 +620,17 @@ app.post("/api/verify", checkAdmin, (req, res) => {
     return { present, total: activeTickets.size };
   };
   if (!ticket) {
-    return res.json({
-      success: false,
-      alreadyScanned: false,
-      message: "❌ Буруу эсвэл хуурамч QR код байна!",
-      stats: getStats(),
-    });
+    return res.json({ success: false, alreadyScanned: false, message: "❌ Буруу эсвэл хуурамч QR код байна!", stats: getStats() });
   }
   if (ticket.present) {
-    return res.json({
-      success: false,
-      alreadyScanned: true,
-      message: `⚠️ #${ticket.ticketNumber} (${ticket.studentClass})\n${ticket.email}\nХэдийнээ орсон!`,
-      stats: getStats(),
-    });
+    return res.json({ success: false, alreadyScanned: true, message: `⚠️ #${ticket.ticketNumber} (${ticket.studentClass})\n${ticket.email}\nХэдийнээ орсон!`, stats: getStats() });
   }
   ticket.present = true;
   enqueueSheetJob(async () => {
     try {
       const rows = await sheet.getRows();
       const targetRow =
-        (ticket.rowNumber &&
-          rows.find((r) => r.rowNumber === ticket.rowNumber)) ||
+        (ticket.rowNumber && rows.find((r) => r.rowNumber === ticket.rowNumber)) ||
         rows.find((r) => r.get("ID") === ticketId);
       if (targetRow) {
         targetRow.set("Ирц", "Ирсэн");
@@ -661,9 +647,7 @@ app.post("/api/verify", checkAdmin, (req, res) => {
   });
 });
 
-app.get("/health", (req, res) =>
-  res.json({ ok: true, ticketCount, max: MAX_TICKETS }),
-);
+app.get("/health", (req, res) => res.json({ ok: true, ticketCount, max: MAX_TICKETS }));
 
 // Admin dashboard: see email account usage
 app.get("/admin/status", checkAdmin, (req, res) => {
