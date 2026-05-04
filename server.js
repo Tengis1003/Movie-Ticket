@@ -423,36 +423,140 @@ function checkAdmin(req, res, next) {
   next();
 }
 
-app.get("/admin/scanner", checkAdmin, (req, res) => {
-  const key = req.query.key;
+// Lightweight endpoint just to validate a key (used by the login page)
+app.post("/admin/login", (req, res) => {
+  const key = (req.body && req.body.key) || req.headers["x-admin-key"];
+  if (key === ADMIN_KEY) return res.json({ ok: true });
+  return res.status(403).json({ ok: false, message: "Буруу нууц үг" });
+});
+
+// Scanner page is now PUBLIC at the URL level, but useless without the key.
+// The key is entered in a login form and stored in localStorage.
+// Every API call still goes through checkAdmin on the server, so this is safe.
+app.get("/admin/scanner", (req, res) => {
   res.send(`
     <!DOCTYPE html>
     <html lang="mn">
     <head>
+        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Тасалбар шалгагч</title>
         <script src="https://unpkg.com/html5-qrcode"></script>
         <style>
-            body { font-family: sans-serif; background: #111827; color: white; margin: 0; padding: 20px; text-align: center; }
+            * { box-sizing: border-box; }
+            body { font-family: -apple-system, system-ui, sans-serif; background: #111827; color: white; margin: 0; padding: 20px; text-align: center; min-height: 100vh; }
             #reader { width: 100%; max-width: 500px; margin: 0 auto; border-radius: 12px; overflow: hidden; }
             #status { margin-top: 20px; padding: 15px; border-radius: 10px; font-weight: bold; font-size: 18px; white-space: pre-line; }
             .success { background: #059669; }
             .error { background: #DC2626; }
             .warning { background: #D97706; }
             #stats { margin-top: 20px; font-size: 14px; color: #9CA3AF; }
+            .hidden { display: none !important; }
+
+            /* Login screen */
+            .login-card { max-width: 380px; margin: 60px auto; background: #1F2937; padding: 40px 28px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+            .login-card h2 { margin: 0 0 8px 0; font-size: 22px; }
+            .login-card p { margin: 0 0 24px 0; color: #9CA3AF; font-size: 14px; }
+            .login-card input { width: 100%; padding: 14px; background: #111827; border: 1px solid #374151; border-radius: 12px; color: white; font-size: 16px; margin-bottom: 12px; }
+            .login-card input:focus { outline: none; border-color: #6366F1; }
+            .login-card button { width: 100%; padding: 14px; background: #6366F1; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+            .login-card button:hover { background: #4F46E5; }
+            .login-error { color: #F87171; font-size: 14px; margin-top: 10px; min-height: 18px; }
+
+            /* Top bar with logout */
+            .topbar { display: flex; justify-content: space-between; align-items: center; max-width: 500px; margin: 0 auto 16px auto; }
+            .topbar h2 { margin: 0; font-size: 18px; }
+            .logout-btn { background: transparent; color: #9CA3AF; border: 1px solid #374151; padding: 6px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+            .logout-btn:hover { color: white; border-color: #6B7280; }
         </style>
     </head>
     <body>
-        <h2>📷 QR Шалгагч</h2>
-        <div id="reader"></div>
-        <div id="status">QR код уншуулна уу...</div>
-        <div id="stats"></div>
+        <!-- LOGIN SCREEN -->
+        <div id="loginScreen" class="login-card">
+            <h2>🔐 Шалгагчид нэвтрэх</h2>
+            <p>Зөвхөн зөвшөөрөгдсөн ажилтан нэвтэрнэ.</p>
+            <input id="keyInput" type="password" placeholder="Нууц түлхүүр" autocomplete="off">
+            <button id="loginBtn">Нэвтрэх</button>
+            <div id="loginError" class="login-error"></div>
+        </div>
+
+        <!-- SCANNER SCREEN -->
+        <div id="scannerScreen" class="hidden">
+            <div class="topbar">
+                <h2>📷 QR Шалгагч</h2>
+                <button class="logout-btn" id="logoutBtn">Гарах</button>
+            </div>
+            <div id="reader"></div>
+            <div id="status">QR код уншуулна уу...</div>
+            <div id="stats"></div>
+        </div>
+
         <script>
-            const ADMIN_KEY = ${JSON.stringify(key)};
-            let isScanning = true;
-            let lastScanned = "";
-            let lastScanTime = 0;
-            const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+            const STORAGE_KEY = "movieNightAdminKey";
+            let ADMIN_KEY = localStorage.getItem(STORAGE_KEY) || "";
+
+            const loginScreen = document.getElementById("loginScreen");
+            const scannerScreen = document.getElementById("scannerScreen");
+            const keyInput = document.getElementById("keyInput");
+            const loginBtn = document.getElementById("loginBtn");
+            const loginError = document.getElementById("loginError");
+            const logoutBtn = document.getElementById("logoutBtn");
+
+            // Try auto-login if key is saved
+            async function tryAutoLogin() {
+                if (!ADMIN_KEY) return false;
+                try {
+                    const res = await fetch("/admin/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ key: ADMIN_KEY })
+                    });
+                    return res.ok;
+                } catch { return false; }
+            }
+
+            async function attemptLogin(key) {
+                loginError.innerText = "";
+                try {
+                    const res = await fetch("/admin/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ key })
+                    });
+                    if (res.ok) {
+                        ADMIN_KEY = key;
+                        localStorage.setItem(STORAGE_KEY, key);
+                        showScanner();
+                    } else {
+                        loginError.innerText = "Буруу нууц түлхүүр";
+                    }
+                } catch (e) {
+                    loginError.innerText = "Сүлжээний алдаа";
+                }
+            }
+
+            loginBtn.addEventListener("click", () => attemptLogin(keyInput.value.trim()));
+            keyInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") attemptLogin(keyInput.value.trim());
+            });
+            logoutBtn.addEventListener("click", () => {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload();
+            });
+
+            let scannerStarted = false;
+            function showScanner() {
+                loginScreen.classList.add("hidden");
+                scannerScreen.classList.remove("hidden");
+                if (!scannerStarted) startScanner();
+                scannerStarted = true;
+            }
+
+            function startScanner() {
+                let isScanning = true;
+                let lastScanned = "";
+                let lastScanTime = 0;
+                const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
             async function onScanSuccess(decodedText) {
                 if(!isScanning) return;
                 const now = Date.now();
@@ -488,7 +592,22 @@ app.get("/admin/scanner", checkAdmin, (req, res) => {
                     statusDiv.className = "";
                 }, 2000);
             }
-            html5QrcodeScanner.render(onScanSuccess);
+                html5QrcodeScanner.render(onScanSuccess);
+            }
+
+            // Auto-login on page load if a saved key works
+            (async () => {
+                if (await tryAutoLogin()) {
+                    showScanner();
+                } else {
+                    if (ADMIN_KEY) {
+                        // Saved key was rejected (e.g. admin changed key) — clear it
+                        localStorage.removeItem(STORAGE_KEY);
+                        ADMIN_KEY = "";
+                    }
+                    keyInput.focus();
+                }
+            })();
         </script>
     </body>
     </html>
@@ -599,11 +718,8 @@ initializeData()
     });
   })
   .catch((err) => {
-    console.error("❌ Failed to initialize:");
-    console.error(err);
-    console.error("\nFull error message:", err.message);
-    console.error("\nPress any key to exit...");
-    setTimeout(() => process.exit(1), 30000); // wait 30 sec so you can read it
+    console.error("❌ Failed to initialize:", err);
+    process.exit(1);
   });
 
 process.on("unhandledRejection", (err) => console.error("Unhandled:", err));
