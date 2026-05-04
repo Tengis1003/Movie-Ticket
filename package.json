@@ -1,23 +1,20 @@
 {
-  "name": "movie-tickets",
+  "name": "orkhon-movie-night",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "cookie-parser": "^1.4.7",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "google-auth-library": "^10.6.2",
-    "google-spreadsheet": "^5.2.0",
-    "nodemailer": "^8.0.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
+    "google-auth-library": "^9.14.0",
+    "google-spreadsheet": "^4.1.4",
     "qrcode": "^1.5.4"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
