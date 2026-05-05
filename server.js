@@ -13,9 +13,13 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_KEY = process.env.ADMIN_KEY || "change-me-in-env";
 const MAX_TICKETS = 400;
 
+
+const poster_link =
+  "https://m.media-amazon.com/images/M/MV5BNTY5MmE2OGMtN2IxNC00MDY4LTkwMGEtZDUzOTYyNWE0ZTNjXkEyXkFqcGc@._V1_.jpg";
+
 // --- EVENT CONFIG (change monthly) ---
 // Format: year, month (1-12), day, hour (0-23), minute — all in Ulaanbaatar time (UTC+8)
-const EVENT_DATE = { year: 2026, month: 5, day: 7, hour: 16, minute: 30 };
+const EVENT_DATE = { year: 2026, month: 5, day: 14, hour: 18, minute: 00 };
 
 function formatEventDate() {
   const { year, month, day, hour, minute } = EVENT_DATE;
@@ -89,8 +93,6 @@ function maybeResetCounters() {
   }
 }
 
-const poster_link =
-  "https://cdn11.bigcommerce.com/s-ydriczk/images/stencil/1500x1500/products/89058/93685/Joker-2019-Final-Style-steps-Poster-buy-original-movie-posters-at-starstills__62518.1669120603.jpg?c=2&imbypass=on";
 
 app.set("trust proxy", 1);
 app.use(express.urlencoded({ extended: true }));
