@@ -577,7 +577,7 @@ app.get("/admin/scanner", (req, res) => {
                 let isProcessing = false;
                 let lastScanned = "";
                 let lastScanTime = 0;
-                const COOLDOWN_MS = 1500;
+                const COOLDOWN_MS = 2000;
                 const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
             async function onScanSuccess(decodedText) {
                 if (isProcessing) return;
