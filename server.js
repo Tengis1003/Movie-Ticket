@@ -13,13 +13,9 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_KEY = process.env.ADMIN_KEY || "change-me-in-env";
 const MAX_TICKETS = 400;
 
-
-const poster_link =
-  "https://m.media-amazon.com/images/M/MV5BNTY5MmE2OGMtN2IxNC00MDY4LTkwMGEtZDUzOTYyNWE0ZTNjXkEyXkFqcGc@._V1_.jpg";
-
 // --- EVENT CONFIG (change monthly) ---
 // Format: year, month (1-12), day, hour (0-23), minute — all in Ulaanbaatar time (UTC+8)
-const EVENT_DATE = { year: 2026, month: 5, day: 14, hour: 18, minute: 00 };
+const EVENT_DATE = { year: 2026, month: 5, day: 7, hour: 16, minute: 30 };
 
 function formatEventDate() {
   const { year, month, day, hour, minute } = EVENT_DATE;
@@ -46,9 +42,7 @@ try {
       .map((e) => e.trim().toLowerCase())
       .filter((e) => e && e.includes("@")),
   );
-  console.log(
-    `✅ Loaded ${allowedEmails.size} allowed emails from public/students.txt`,
-  );
+  console.log(`✅ Loaded ${allowedEmails.size} allowed emails from public/students.txt`);
 } catch (err) {
   console.warn(
     "⚠️ public/students.txt not found — anyone with a school email can sign up",
@@ -93,6 +87,8 @@ function maybeResetCounters() {
   }
 }
 
+const poster_link =
+  "https://cdn11.bigcommerce.com/s-ydriczk/images/stencil/1500x1500/products/89058/93685/Joker-2019-Final-Style-steps-Poster-buy-original-movie-posters-at-starstills__62518.1669120603.jpg?c=2&imbypass=on";
 
 app.set("trust proxy", 1);
 app.use(express.urlencoded({ extended: true }));
@@ -313,22 +309,18 @@ app.get("/", (req, res) => res.redirect("/scan"));
 
 app.get("/scan", (req, res) => {
   if (isEventPast()) {
-    return res
-      .status(403)
-      .send(
-        generateHTML(
-          `<span class="emoji-header">🎬</span><h1>Үйл явдал дууссан</h1><p>Энэ удаагийн киноны үдэш дууссан байна. Дараагийн арга хэмжээг хүлээж байгаарай!</p>`,
-        ),
-      );
+    return res.status(403).send(
+      generateHTML(
+        `<span class="emoji-header">🎬</span><h1>Үйл явдал дууссан</h1><p>Энэ удаагийн киноны үдэш дууссан байна. Дараагийн арга хэмжээг хүлээж байгаарай!</p>`,
+      ),
+    );
   }
   if (ticketCount >= MAX_TICKETS) {
-    return res
-      .status(403)
-      .send(
-        generateHTML(
-          `<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1><p>Нийт ${MAX_TICKETS} тасалбар дууссан байна.</p>`,
-        ),
-      );
+    return res.status(403).send(
+      generateHTML(
+        `<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1><p>Нийт ${MAX_TICKETS} тасалбар дууссан байна.</p>`,
+      ),
+    );
   }
   const currentDateTime = formatEventDate();
   res.send(
@@ -354,66 +346,40 @@ app.get("/scan", (req, res) => {
 
 app.post("/scan", ipLimiter, emailLimiter, async (req, res) => {
   if (isEventPast()) {
-    return res
-      .status(403)
-      .send(
-        generateHTML(
-          `<span class="emoji-header">🎬</span><h1>Үйл явдал дууссан</h1><p>Бүртгэл хаагдсан.</p>`,
-        ),
-      );
+    return res.status(403).send(
+      generateHTML(
+        `<span class="emoji-header">🎬</span><h1>Үйл явдал дууссан</h1><p>Бүртгэл хаагдсан.</p>`,
+      ),
+    );
   }
   const email = (req.body.studentEmail || "").trim().toLowerCase();
   const studentClass = (req.body.studentClass || "").trim();
 
   if (!email || !studentClass) {
-    return res.send(
-      generateHTML(
-        `<span class="emoji-header">⚠️</span><h1 class="alert-error">Дутуу мэдээлэл</h1><p>И-мэйл болон ангиа бөглөнө үү.</p>`,
-      ),
-    );
+    return res.send(generateHTML(`<span class="emoji-header">⚠️</span><h1 class="alert-error">Дутуу мэдээлэл</h1><p>И-мэйл болон ангиа бөглөнө үү.</p>`));
   }
   if (!email.endsWith("@orkhonschool.edu.mn")) {
-    return res.send(
-      generateHTML(
-        `<span class="emoji-header">⚠️</span><h1 class="alert-error">Буруу хаяг</h1><p>Зөвхөн сургуулийн и-мэйл хаяг ашиглана уу.</p>`,
-      ),
-    );
+    return res.send(generateHTML(`<span class="emoji-header">⚠️</span><h1 class="alert-error">Буруу хаяг</h1><p>Зөвхөн сургуулийн и-мэйл хаяг ашиглана уу.</p>`));
   }
   if (allowedEmails.size > 0 && !allowedEmails.has(email)) {
-    return res.send(
-      generateHTML(
-        `<span class="emoji-header">🚫</span><h1 class="alert-error">Бүртгэлгүй и-мэйл</h1><p>Энэ и-мэйл хаяг сурагчийн жагсаалтад байхгүй байна. Анги удирдсан багштайгаа холбогдоно уу.</p>`,
-      ),
-    );
+    return res.send(generateHTML(`<span class="emoji-header">🚫</span><h1 class="alert-error">Бүртгэлгүй и-мэйл</h1><p>Энэ и-мэйл хаяг сурагчийн жагсаалтад байхгүй байна. Анги удирдсан багштайгаа холбогдоно уу.</p>`));
   }
   if (claimedEmails.has(email)) {
-    return res.send(
-      generateHTML(
-        `<span class="emoji-header">🎟️</span><h1 style="color: #059669;">Баталгаажсан байна!</h1><p>И-мэйл хаягаа шалгана уу.</p>`,
-      ),
-    );
+    return res.send(generateHTML(`<span class="emoji-header">🎟️</span><h1 style="color: #059669;">Баталгаажсан байна!</h1><p>И-мэйл хаягаа шалгана уу.</p>`));
   }
 
   const myTicketNumber = ++ticketCount;
   if (myTicketNumber > MAX_TICKETS) {
     ticketCount--;
-    return res
-      .status(403)
-      .send(
-        generateHTML(
-          `<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1>`,
-        ),
-      );
+    return res.status(403).send(generateHTML(`<span class="emoji-header">🛑</span><h1 class="alert-error">Уучлаарай, дууссан!</h1>`));
   }
   claimedEmails.add(email);
 
   const ticketId = crypto.randomBytes(6).toString("hex");
   activeTickets.set(ticketId, {
-    email,
-    studentClass,
+    email, studentClass,
     ticketNumber: myTicketNumber,
-    present: false,
-    rowNumber: null,
+    present: false, rowNumber: null,
   });
 
   let qrCodeDataURI;
@@ -424,11 +390,7 @@ app.post("/scan", ipLimiter, emailLimiter, async (req, res) => {
     ticketCount--;
     claimedEmails.delete(email);
     activeTickets.delete(ticketId);
-    return res.send(
-      generateHTML(
-        `<span class="emoji-header">⚠️</span><h1 class="alert-error">Алдаа гарлаа</h1><p>Дахин оролдоно уу.</p>`,
-      ),
-    );
+    return res.send(generateHTML(`<span class="emoji-header">⚠️</span><h1 class="alert-error">Алдаа гарлаа</h1><p>Дахин оролдоно уу.</p>`));
   }
 
   res.send(
@@ -445,9 +407,7 @@ app.post("/scan", ipLimiter, emailLimiter, async (req, res) => {
       Дугаар: myTicketNumber,
       "И-мэйл": email,
       Анги: studentClass,
-      Огноо: new Date().toLocaleString("mn-MN", {
-        timeZone: "Asia/Ulaanbaatar",
-      }),
+      Огноо: new Date().toLocaleString("mn-MN", { timeZone: "Asia/Ulaanbaatar" }),
       Ирц: "Эзгүй",
       ID: ticketId,
     });
@@ -614,17 +574,20 @@ app.get("/admin/scanner", (req, res) => {
             }
 
             function startScanner() {
-                let isScanning = true;
+                let isProcessing = false;
                 let lastScanned = "";
                 let lastScanTime = 0;
+                const COOLDOWN_MS = 1500;
                 const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
             async function onScanSuccess(decodedText) {
-                if(!isScanning) return;
+                if (isProcessing) return;
                 const now = Date.now();
-                if (decodedText === lastScanned && now - lastScanTime < 2000) return;
+                if (decodedText === lastScanned && now - lastScanTime < COOLDOWN_MS) return;
+                isProcessing = true;
                 lastScanned = decodedText;
                 lastScanTime = now;
-                isScanning = false;
+                try { html5QrcodeScanner.pause(true); } catch (e) {}
+                if (navigator.vibrate) navigator.vibrate(50);
                 const statusDiv = document.getElementById('status');
                 statusDiv.innerText = "Шалгаж байна...";
                 statusDiv.className = "";
@@ -648,10 +611,11 @@ app.get("/admin/scanner", (req, res) => {
                     statusDiv.className = "error";
                 }
                 setTimeout(() => {
-                    isScanning = true;
                     statusDiv.innerText = "Дараагийн QR кодыг уншуулна уу...";
                     statusDiv.className = "";
-                }, 2000);
+                    try { html5QrcodeScanner.resume(); } catch (e) {}
+                    isProcessing = false;
+                }, COOLDOWN_MS);
             }
                 html5QrcodeScanner.render(onScanSuccess);
             }
@@ -684,28 +648,17 @@ app.post("/api/verify", checkAdmin, (req, res) => {
     return { present, total: activeTickets.size };
   };
   if (!ticket) {
-    return res.json({
-      success: false,
-      alreadyScanned: false,
-      message: "❌ Буруу эсвэл хуурамч QR код байна!",
-      stats: getStats(),
-    });
+    return res.json({ success: false, alreadyScanned: false, message: "❌ Буруу эсвэл хуурамч QR код байна!", stats: getStats() });
   }
   if (ticket.present) {
-    return res.json({
-      success: false,
-      alreadyScanned: true,
-      message: `⚠️ #${ticket.ticketNumber} (${ticket.studentClass})\n${ticket.email}\nХэдийнээ орсон!`,
-      stats: getStats(),
-    });
+    return res.json({ success: false, alreadyScanned: true, message: `⚠️ #${ticket.ticketNumber} (${ticket.studentClass})\n${ticket.email}\nХэдийнээ орсон!`, stats: getStats() });
   }
   ticket.present = true;
   enqueueSheetJob(async () => {
     try {
       const rows = await sheet.getRows();
       const targetRow =
-        (ticket.rowNumber &&
-          rows.find((r) => r.rowNumber === ticket.rowNumber)) ||
+        (ticket.rowNumber && rows.find((r) => r.rowNumber === ticket.rowNumber)) ||
         rows.find((r) => r.get("ID") === ticketId);
       if (targetRow) {
         targetRow.set("Ирц", "Ирсэн");
@@ -722,9 +675,7 @@ app.post("/api/verify", checkAdmin, (req, res) => {
   });
 });
 
-app.get("/health", (req, res) =>
-  res.json({ ok: true, ticketCount, max: MAX_TICKETS }),
-);
+app.get("/health", (req, res) => res.json({ ok: true, ticketCount, max: MAX_TICKETS }));
 
 // Admin dashboard: see email account usage
 app.get("/admin/status", checkAdmin, (req, res) => {
