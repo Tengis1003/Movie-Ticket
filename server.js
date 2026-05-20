@@ -18,7 +18,7 @@ const poster_link =
 
 // --- EVENT CONFIG (change monthly) ---
 // Format: year, month (1-12), day, hour (0-23), minute — all in Ulaanbaatar time (UTC+8)
-const EVENT_DATE = { year: 2026, month: 5, day: 14, hour: 18, minute: 0 };
+const EVENT_DATE = { year: 2026, month: 5, day: 30, hour: 18, minute: 0 };
 
 function formatEventDate() {
   const { year, month, day, hour, minute } = EVENT_DATE;
